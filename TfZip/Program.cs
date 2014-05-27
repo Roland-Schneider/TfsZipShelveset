@@ -15,26 +15,25 @@ namespace TfZip
     {
         static void Usage()
         {
-            System.Console.WriteLine(String.Format("Usage:   TfZip -shelveset <shelvesetname>[;<selvesetowner>] [<zipoutfile>]      Creates a zipfile containing the files in the shelveset and their previous versions."));
-            System.Console.WriteLine(String.Format("                                                                                A filename will be generated from <shelvesetname> if <zipoutfile> ends with '\\' or is missing."));
-            System.Console.WriteLine(String.Format("         TfZip -pending <zipoutfile>                                            Creates a zipfile containing all pending files and their previous versions."));
+            Console.WriteLine(String.Format("Usage:   TfZip [-y] -shel[veset] <shelvesetname>[;<shelvesetowner>] [<zipoutfile>]     Creates a zipfile containing the files in the shelveset and their previous versions."));
+            Console.WriteLine(String.Format("                                                                                       A filename will be generated from <shelvesetname> if <zipoutfile> ends with '\\' or is missing."));
+            Console.WriteLine(String.Format("                                                                                       '-y' suppresses prompting to confirm overwrite an existing <zipoutfile>."));
+            Console.WriteLine(String.Format("         TfZip [-y] -pend[ing] <zipoutfile>                                            Creates a zipfile containing all pending files and their previous versions."));
         }
 
 
         enum ItemsSource
         {
-            ShelveSet,
-            Pending,
+            ShelveSet = 1,
+            Pending = 2,
         }
 
 
         static int Main(String[] args)
         {
-            //System.Diagnostics.Debugger.Launch();
-
             String zipFilePath = null;
 
-            ItemsSource itemsSource;
+            ItemsSource itemsSource = (ItemsSource)0;
             String shelveSetSpec = null;
             String shelvesetName = null;
             String shelvesetOwner = null;
@@ -46,72 +45,86 @@ namespace TfZip
             }
 
             WorkspaceInfo wsInfo = null;
+            bool confirmOverwriteOutfile = true;
 
-            if (String.Equals(args[0], "-shelveset", StringComparison.InvariantCultureIgnoreCase))
+            System.Collections.IEnumerator enu = args.GetEnumerator();
+            enu.Reset();
+            while (enu.MoveNext())
             {
-                if ((args.Length < 2) || (args.Length > 3))
+                string arg = (string)enu.Current;
+                string option = arg.ToLowerInvariant();
+
+                if (String.Equals(option, "-y", StringComparison.InvariantCultureIgnoreCase) || String.Equals(args[0], "/y", StringComparison.InvariantCultureIgnoreCase))
                 {
-                    Usage();
-                    return 3;
+                    confirmOverwriteOutfile = false;
                 }
-
-                shelveSetSpec = args[1];
-                WorkspaceSpec.Parse(shelveSetSpec, RepositoryConstants.AuthenticatedUser, out shelvesetName, out shelvesetOwner);
-                if (String.IsNullOrEmpty(shelvesetName) || String.IsNullOrEmpty(shelvesetOwner))
+                else if ((option.Length >= 5) && ("-shelveset".StartsWith(option, StringComparison.InvariantCultureIgnoreCase) || "/shelveset".StartsWith(option, StringComparison.InvariantCultureIgnoreCase)))
                 {
-                    Usage();
-                    return 3;
-                }
-
-                if (args.Length == 3)
-                {
-                    zipFilePath = args[2];
-                }
-
-                zipFilePath = EnsureValidZipOutFile(zipFilePath, delegate() { return shelvesetName; });
-
-                itemsSource = ItemsSource.ShelveSet;
-            }
-            else if (String.Equals(args[0], "-pending", StringComparison.InvariantCultureIgnoreCase))
-            {
-                if ((args.Length < 1) || (args.Length > 2))
-                {
-                    Usage();
-                    return 3;
-                }
-
-                if (args.Length == 2)
-                {
-                    zipFilePath = args[1];
-                }
-
-                try
-                {
-                    zipFilePath = EnsureValidZipOutFile(zipFilePath, delegate()
+                    if (!enu.MoveNext())
                     {
-                        wsInfo = Workstation.Current.GetLocalWorkspaceInfo(Environment.CurrentDirectory);
-                        if (wsInfo == null)
-                        {
-                            Console.Error.WriteLine("The current directory is not part of a workspace.");
-                            throw new ApplicationException();
-                        }
+                        Usage();
+                        return 3;
+                    }
 
-                        string fallbackFileName = DateTime.Now.ToString("yyyyMMddTHHmmss") + '_' + wsInfo.Name + '@' + wsInfo.Computer;
-                        return fallbackFileName;
-                    });
+                    shelveSetSpec = (string)enu.Current;
+                    WorkspaceSpec.Parse(shelveSetSpec, RepositoryConstants.AuthenticatedUser, out shelvesetName, out shelvesetOwner);
+                    if (String.IsNullOrEmpty(shelvesetName) || String.IsNullOrEmpty(shelvesetOwner))
+                    {
+                        Usage();
+                        return 3;
+                    }
+
+                    if (enu.MoveNext())
+                    {
+                        zipFilePath = (string)enu.Current;
+                    }
+
+                    zipFilePath = EnsureValidZipOutFile(zipFilePath, delegate() { return shelvesetName; });
+
+                    itemsSource = ItemsSource.ShelveSet;
                 }
-                catch (ApplicationException)
+                else if ((option.Length >= 5) && ("-pending".StartsWith(option, StringComparison.InvariantCultureIgnoreCase) || "/pending".StartsWith(option, StringComparison.InvariantCultureIgnoreCase)))
                 {
-                    return 1;
-                }
+                    if (enu.MoveNext())
+                    {
+                        zipFilePath = (string)enu.Current;
+                    }
 
-                itemsSource = ItemsSource.Pending;
+                    try
+                    {
+                        zipFilePath = EnsureValidZipOutFile(zipFilePath, delegate()
+                        {
+                            wsInfo = Workstation.Current.GetLocalWorkspaceInfo(Environment.CurrentDirectory);
+                            if (wsInfo == null)
+                            {
+                                Console.Error.WriteLine("The current directory is not part of a workspace.");
+                                throw new ApplicationException();
+                            }
+
+                            string fallbackFileName = DateTime.Now.ToString("yyyyMMddTHHmmss") + '_' + wsInfo.Name + '@' + wsInfo.Computer;
+                            return fallbackFileName;
+                        });
+                    }
+                    catch (ApplicationException)
+                    {
+                        return 1;
+                    }
+
+                    itemsSource = ItemsSource.Pending;
+                }
+                else
+                {
+                    Usage();
+                    return 3;
+                }
             }
-            else
+
+            if (itemsSource == (ItemsSource)0)
             {
                 Usage();
                 return 3;
             }
+
 
             if (wsInfo == null)
             {
@@ -130,7 +143,7 @@ namespace TfZip
                 VersionControlServer versionControl = (VersionControlServer)tfsServer.GetService(typeof(VersionControlServer));
                 if (versionControl == null)
                 {
-                    System.Console.WriteLine(String.Format("Could not access VersionControlServer service."));
+                    Console.WriteLine(String.Format("Could not access VersionControlServer service."));
                     return 1;
                 }
 
@@ -150,7 +163,7 @@ namespace TfZip
                     }
                     catch (ShelvesetNotFoundException)
                     {
-                        System.Console.WriteLine(String.Format("Could not find shelveset \"{0}\".", shelveSetSpec));
+                        Console.WriteLine(String.Format("Could not find shelveset \"{0}\".", shelveSetSpec));
                         return 1;
                     }
                     if ((pendingSets == null) || (pendingSets.Length == 0) || (pendingSets.Length > 1))
@@ -173,15 +186,31 @@ namespace TfZip
                 {
                     if (zipFilePathInfo.IsReadOnly)
                     {
-                        System.Console.WriteLine(String.Format("Cannot write to outfile \"{0}\".", zipFilePath));
+                        Console.WriteLine(String.Format("Cannot write to outfile \"{0}\".", zipFilePath));
                         return 1;
+                    }
+                    else if (confirmOverwriteOutfile)
+                    {
+                        while (true)
+                        {
+                            Console.Write(String.Format("Overwrite \"{0}\" ? (Yes/No): ", zipFilePath));
+                            string result = Console.ReadLine().ToLowerInvariant();
+                            if (result.Length >= 1 && "yes".StartsWith(result))
+                            {
+                                break;
+                            }
+                            else if (result.Length >= 1 && "no".StartsWith(result))
+                            {
+                                return 1;
+                            }
+                        }
                     }
                 }
                 else
                 {
                     if (!zipFilePathInfo.Directory.Exists)
                     {
-                        System.Console.WriteLine(String.Format("Cannot access outfile path \"{0}\".", zipFilePath));
+                        Console.WriteLine(String.Format("Cannot access outfile path \"{0}\".", zipFilePath));
                         return 1;
                     }
                 }
@@ -203,11 +232,17 @@ namespace TfZip
                         }
                         catch (Exception ex)
                         {
-                            System.Console.WriteLine(String.Format("Cannot use temporary storage file \"{0}\"." + Environment.NewLine + "{1}", tmpFileInfo, ex.Message));
+                            Console.WriteLine(String.Format("Cannot use temporary storage file \"{0}\"." + Environment.NewLine + "{1}", tmpFileInfo, ex.Message));
                         }
 
                         MemoryStream pendingChangesInfo = new MemoryStream();
                         StreamWriter pendingChangesInfoWriter = new StreamWriter(pendingChangesInfo);
+
+                        if (pendingChanges.Length == 0)
+                        {
+                            Console.WriteLine("No pending changes. No file written.");
+                            return 1;
+                        }
 
                         foreach (PendingChange pendingChange in pendingChanges)
                         {
@@ -216,7 +251,7 @@ namespace TfZip
                             string originalPath = pendingChange.IsRename ? pendingChange.SourceServerItem : null;
                             string originalPathInfo = originalPath != null ? String.Format("{0}", originalPath) : String.Empty;
                             string info = String.Format("{0}|{1}|{2}|{3}", pendingChange.ServerItem, changeType, basedOn, originalPathInfo);
-                            System.Console.WriteLine(info);
+                            Console.WriteLine(info);
                             pendingChangesInfoWriter.WriteLine(info);
 
                             if (pendingChange.ItemType != ItemType.File)
