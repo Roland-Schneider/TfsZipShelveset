@@ -261,23 +261,27 @@ namespace TfZip
 
                             string serverItemRelativePath = pendingChange.ServerItem.Substring(2).Replace('/', Path.DirectorySeparatorChar);
 
-                            if (pendingChange.LocalOrServerItem.StartsWith("$"))
+                            if (!pendingChange.IsDelete)
                             {
-                                pendingChange.DownloadShelvedFile(tmpFile);
-                            }
-                            else
-                            {
-                                string path = Path.GetDirectoryName(tmpFile);
-                                Directory.CreateDirectory(path);
-                                File.Copy(pendingChange.LocalOrServerItem, tmpFile, true);
+                                if (pendingChange.LocalOrServerItem.StartsWith("$"))
+                                {
+                                    pendingChange.DownloadShelvedFile(tmpFile);
+                                }
+                                else
+                                {
+                                    string path = Path.GetDirectoryName(tmpFile);
+                                    Directory.CreateDirectory(path);
+                                    File.Copy(pendingChange.LocalOrServerItem, tmpFile, true);
+                                    File.SetAttributes(tmpFile, FileAttributes.Normal);
+                                }
+
+                                using (FileStream fs = File.OpenRead(tmpFile))
+                                {
+                                    AddFileToZip(zipArchive, serverItemRelativePath, pendingChange.CreationDate, fs);
+                                }
                             }
 
-                            using (FileStream fs = File.OpenRead(tmpFile))
-                            {
-                                AddFileToZip(zipArchive, serverItemRelativePath, pendingChange.CreationDate, fs);
-                            }
-
-                            if (pendingChange.IsEdit && !pendingChange.IsAdd)
+                            if ((pendingChange.IsEdit && !pendingChange.IsAdd) || (pendingChange.IsDelete))
                             {
                                 string originalFileRelativePath = originalPath == null ? serverItemRelativePath : originalPath.Substring(2).Replace('/', Path.DirectorySeparatorChar);
 
