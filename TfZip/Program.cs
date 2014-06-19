@@ -315,21 +315,26 @@ namespace TfZip
                         pendingChangesInfo.Flush();
                         pendingChangesInfo.Position = 0;
 
-                        AddFileToZip(zipArchive, "Files.txt", (shelveset != null) ? shelveset.CreationDate : DateTime.Now, pendingChangesInfo);
+                        DateTime referenceDate = (shelveset != null) ? shelveset.CreationDate : DateTime.Now;
+                        AddFileToZip(zipArchive, "Files.txt", referenceDate, pendingChangesInfo);
 
+                        MemoryStream commentInfo = new MemoryStream();
+                        StreamWriter commentInfoWriter = new StreamWriter(commentInfo);
+                        commentInfoWriter.WriteLine(String.Format("Version={0}", tfZipVersion));
                         if (shelveset != null)
                         {
-                            MemoryStream commentInfo = new MemoryStream();
-                            StreamWriter commentInfoWriter = new StreamWriter(commentInfo);
-                            commentInfoWriter.WriteLine(String.Format("Version={0}", tfZipVersion));
                             commentInfoWriter.WriteLine(String.Format("Shelveset={0}", shelveset.Name));
                             commentInfoWriter.WriteLine(String.Format("Owner={0}", shelveset.OwnerName));
                             commentInfoWriter.WriteLine(String.Format("Date={0}", shelveset.CreationDate.ToString("s")));
                             commentInfoWriter.WriteLine(String.Format("Comment={0}", shelveset.Comment));
-                            commentInfoWriter.Flush();
-                            commentInfo.Flush();
-                            AddFileToZip(zipArchive, "Info.txt", shelveset.CreationDate, commentInfo);
                         }
+                        else
+                        {
+                            commentInfoWriter.WriteLine("PendingChanges");
+                        }
+                        commentInfoWriter.Flush();
+                        commentInfo.Flush();
+                        AddFileToZip(zipArchive, "Info.txt", referenceDate, commentInfo);
 
                         Console.WriteLine(String.Format("Zip file written to \"{0}\"", zipFilePathFull));
 
