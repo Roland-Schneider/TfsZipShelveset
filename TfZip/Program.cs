@@ -144,7 +144,10 @@ namespace TfZip
                 }
             }
 
-            using (TfsTeamProjectCollection tfsServer = new TfsTeamProjectCollection(wsInfo.ServerUri, new UICredentialsProvider()))
+            // TFS v2.0:
+            // using (TfsTeamProjectCollection tfsServer = new TfsTeamProjectCollection(wsInfo.ServerUri, new UICredentialsProvider()))
+            // TFS v4.0:
+            using (TfsTeamProjectCollection tfsServer = new TfsTeamProjectCollection(wsInfo.ServerUri, new TfsClientCredentials()))
             {
                 tfsServer.EnsureAuthenticated();
 
