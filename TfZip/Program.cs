@@ -8,6 +8,7 @@ using Microsoft.TeamFoundation.Framework.Client;
 using System.IO;
 using Microsoft.TeamFoundation.VersionControl.Common;
 using System.IO.Compression;
+using Microsoft.TeamFoundation;
 
 namespace TfZip
 {
@@ -31,6 +32,13 @@ namespace TfZip
 
         static int Main(String[] args)
         {
+            System.Reflection.Assembly assembly = typeof(Program).Assembly;
+            Version assemblyVersion = typeof(Program).Assembly.GetName().Version;
+            System.Runtime.Versioning.TargetFrameworkAttribute targetFramework = assembly.GetCustomAttributes(typeof(System.Runtime.Versioning.TargetFrameworkAttribute), true).OfType<System.Runtime.Versioning.TargetFrameworkAttribute>().Single();
+            Version tfsAssemblyVersion = typeof(TeamFoundationVersion).Assembly.GetName().Version;
+            string tfZipVersion = String.Format("{0}.{1}", assemblyVersion.Major, assemblyVersion.Minor);
+            Console.WriteLine(String.Format("TfZip {0} (Requires {1}, uses TFS assemblies {2})", tfZipVersion, targetFramework.FrameworkDisplayName, tfsAssemblyVersion));
+
             String zipFilePath = null;
 
             ItemsSource itemsSource = (ItemsSource)0;
@@ -310,6 +318,7 @@ namespace TfZip
                         {
                             MemoryStream commentInfo = new MemoryStream();
                             StreamWriter commentInfoWriter = new StreamWriter(commentInfo);
+                            commentInfoWriter.WriteLine(String.Format("Version={0}", tfZipVersion));
                             commentInfoWriter.WriteLine(String.Format("Shelveset={0}", shelveset.Name));
                             commentInfoWriter.WriteLine(String.Format("Owner={0}", shelveset.OwnerName));
                             commentInfoWriter.WriteLine(String.Format("Date={0}", shelveset.CreationDate.ToString("s")));
