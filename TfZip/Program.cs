@@ -9,17 +9,24 @@ using System.IO;
 using Microsoft.TeamFoundation.VersionControl.Common;
 using System.IO.Compression;
 using Microsoft.TeamFoundation;
+using System.Text.RegularExpressions;
+using System.Configuration;
 
 namespace TfZip
 {
     class Program
     {
+        private static readonly string ServerFilesZipContentPrefix = @"$\";
+        private static readonly string LocalFilesZipContentPrefix = @"@LocalFiles\";
+
         static void Usage()
         {
             Console.WriteLine(String.Format("Usage:   TfZip [-y] -shel[veset] <shelvesetname>[;<shelvesetowner>] [<zipoutfile>]     Creates a zipfile containing the files in the shelveset and their previous versions."));
             Console.WriteLine(String.Format("                                                                                       A filename will be generated from <shelvesetname> if <zipoutfile> ends with '\\' or is missing."));
             Console.WriteLine(String.Format("                                                                                       '-y' suppresses prompting to confirm overwrite an existing <zipoutfile>."));
             Console.WriteLine(String.Format("         TfZip [-y] -pend[ing] <zipoutfile>                                            Creates a zipfile containing all pending files and their previous versions."));
+            Console.WriteLine(String.Format("         TfZip [-y] -wfol[der] <zipoutfile>                                            Creates a zipfile containing all pending files, their previous versions and selected local files according to configured rules."));
+            Console.WriteLine(String.Format("         TfZip -conf[ig]                                                               Opens the local files selection rules in the default editor for \".config\" files."));
         }
 
 
@@ -27,6 +34,7 @@ namespace TfZip
         {
             ShelveSet = 1,
             Pending = 2,
+            PendingAndWorkfold = 4,
         }
 
 
@@ -87,7 +95,11 @@ namespace TfZip
                         zipFilePath = (string)enu.Current;
                     }
 
-                    zipFilePath = EnsureValidZipOutFile(zipFilePath, delegate() { return shelvesetName; });
+                    zipFilePath = EnsureValidZipOutFile(zipFilePath,
+                                                        delegate()
+                                                        { 
+                                                            return shelvesetName;
+                                                        });
 
                     itemsSource = ItemsSource.ShelveSet;
                 }
@@ -100,18 +112,19 @@ namespace TfZip
 
                     try
                     {
-                        zipFilePath = EnsureValidZipOutFile(zipFilePath, delegate()
-                        {
-                            wsInfo = Workstation.Current.GetLocalWorkspaceInfo(Environment.CurrentDirectory);
-                            if (wsInfo == null)
-                            {
-                                Console.Error.WriteLine("The current directory is not part of a workspace.");
-                                throw new ApplicationException();
-                            }
+                        zipFilePath = EnsureValidZipOutFile(zipFilePath,
+                                                            delegate()
+                                                            {
+                                                                wsInfo = Workstation.Current.GetLocalWorkspaceInfo(Environment.CurrentDirectory);
+                                                                if (wsInfo == null)
+                                                                {
+                                                                    Console.Error.WriteLine("The current directory is not part of a workspace.");
+                                                                    throw new ApplicationException();
+                                                                }
 
-                            string fallbackFileName = DateTime.Now.ToString("yyyyMMddTHHmmss") + '_' + wsInfo.Name + '@' + wsInfo.Computer;
-                            return fallbackFileName;
-                        });
+                                                                string fallbackFileName = DateTime.Now.ToString("yyyyMMddTHHmmss") + '_' + wsInfo.Name + '@' + wsInfo.Computer;
+                                                                return fallbackFileName;
+                                                            });
                     }
                     catch (ApplicationException)
                     {
@@ -119,6 +132,83 @@ namespace TfZip
                     }
 
                     itemsSource = ItemsSource.Pending;
+                }
+                else if ((option.Length >= 5) && ("-wfolder".StartsWith(option, StringComparison.InvariantCultureIgnoreCase) || "/wfolder".StartsWith(option, StringComparison.InvariantCultureIgnoreCase)))
+                {
+                    if (enu.MoveNext())
+                    {
+                        zipFilePath = (string)enu.Current;
+                    }
+
+                    try
+                    {
+                        zipFilePath = EnsureValidZipOutFile(zipFilePath,
+                                                            delegate()
+                                                            {
+                                                                wsInfo = Workstation.Current.GetLocalWorkspaceInfo(Environment.CurrentDirectory);
+                                                                if (wsInfo == null)
+                                                                {
+                                                                    Console.Error.WriteLine("The current directory is not part of a workspace.");
+                                                                    throw new ApplicationException();
+                                                                }
+
+                                                                string fallbackFileName = DateTime.Now.ToString("yyyyMMddTHHmmss") + '_' + wsInfo.Name + '@' + wsInfo.Computer;
+                                                                return fallbackFileName;
+                                                            });
+                    }
+                    catch (ApplicationException)
+                    {
+                        return 1;
+                    }
+
+                    Configuration userConfig = ConfigurationManager.OpenExeConfiguration(ConfigurationUserLevel.PerUserRoamingAndLocal);
+                    if (!userConfig.HasFile)
+                    {
+                        Console.Error.WriteLine("The local files selection configuration is not yet prepared.");
+                        Console.Error.WriteLine(String.Format("The configuration file \"{0}\" will be opened using the default editor.", userConfig.FilePath));
+                        Console.Error.WriteLine("Please check the selection rules.");
+                        TfZipSettings.Default.LocalFilesSelectionConfiguration = TfZipSettings.Default.LocalFilesSelectionConfiguration;
+                        TfZipSettings.Default.Save();
+                        System.Diagnostics.Process.Start(userConfig.FilePath);
+                        return 1;
+                    }
+
+                    Expression localFilesSelector = TfZipSettings.Default.LocalFilesSelectionConfiguration;
+                    if (localFilesSelector == null)
+                    {
+                        Console.Error.WriteLine("The local files selection configuration is missing. Please check the selection rules.");
+                        System.Diagnostics.Process.Start(userConfig.FilePath);
+                        return 1;
+                    }
+
+                    Console.Error.WriteLine(String.Format("Using local files selection rules from \"{0}\"", userConfig.FilePath));
+
+                    itemsSource = ItemsSource.PendingAndWorkfold;
+                }
+                else if ((option.Length >= 5) && ("-config".StartsWith(option, StringComparison.InvariantCultureIgnoreCase) || "/config".StartsWith(option, StringComparison.InvariantCultureIgnoreCase)))
+                {
+                    Configuration userConfig = ConfigurationManager.OpenExeConfiguration(ConfigurationUserLevel.PerUserRoamingAndLocal);
+                    if (!userConfig.HasFile)
+                    {
+                        //Expression readonlyRule = new Expression();
+                        //readonlyRule.ExpressionType = "Rule";
+                        //readonlyRule.IsReadOnly = String.Empty;
+
+                        //Expression excludeRule = new Expression();
+                        //excludeRule.ExpressionType = "Rule";
+                        //excludeRule.Not = String.Empty;
+                        //excludeRule.FullNameRegex = @"\\bin\\x86\\debug\\";
+
+                        //Expression root = new Expression();
+                        //root.ExpressionType = "And";
+                        //root.Operands = new ExpressionList() { readonlyRule, excludeRule };
+                        //TfZipSettings.Default.LocalFilesSelectionConfiguration = root;
+
+                        TfZipSettings.Default.LocalFilesSelectionConfiguration = TfZipSettings.Default.LocalFilesSelectionConfiguration;
+                        TfZipSettings.Default.Save();
+                    }
+                    System.Diagnostics.Process.Start(userConfig.FilePath);
+                    return 0;
                 }
                 else
                 {
@@ -160,7 +250,7 @@ namespace TfZip
 
                 Shelveset shelveset = null;
                 PendingChange[] pendingChanges;
-                if (itemsSource == ItemsSource.Pending)
+                if ((itemsSource == ItemsSource.Pending) || (itemsSource == ItemsSource.PendingAndWorkfold))
                 {
                     Workspace workspace = versionControl.GetWorkspace(wsInfo);
                     pendingChanges = workspace.GetPendingChanges();
@@ -288,7 +378,7 @@ namespace TfZip
 
                                 using (FileStream fs = File.OpenRead(tmpFile))
                                 {
-                                    AddFileToZip(zipArchive, serverItemRelativePath, pendingChange.CreationDate, fs);
+                                    AddFileToZip(zipArchive, ServerFilesZipContentPrefix + serverItemRelativePath, pendingChange.CreationDate, fs);
                                 }
                             }
 
@@ -306,7 +396,7 @@ namespace TfZip
 
                                 using (FileStream fs = File.OpenRead(tmpFile))
                                 {
-                                    AddFileToZip(zipArchive, baseServerItemRelativePath, baseVersionChangeSet.CreationDate, fs);
+                                    AddFileToZip(zipArchive, ServerFilesZipContentPrefix + baseServerItemRelativePath, baseVersionChangeSet.CreationDate, fs);
                                 }
                             }
                         }
@@ -335,6 +425,42 @@ namespace TfZip
                         commentInfoWriter.Flush();
                         commentInfo.Flush();
                         AddFileToZip(zipArchive, "Info.txt", referenceDate, commentInfo);
+
+                        if (itemsSource == ItemsSource.PendingAndWorkfold)
+                        {
+                            Expression localFilesSelector = TfZipSettings.Default.LocalFilesSelectionConfiguration;
+
+                            foreach (string workfold in wsInfo.MappedPaths) // http://msdn.microsoft.com/en-us/library/ms181378.aspx
+                            {
+                                foreach (FileInfo file in new DirectoryInfo(workfold).FlattenHierarchy(delegate(DirectoryInfo dir) { try { return dir.GetDirectories(); } catch { return null; } })
+                                                                                     .SelectMany(delegate(DirectoryInfo dir) { try { return dir.GetFiles(@"*"); } catch { return new FileInfo[] { }; } }))
+                                {
+                                    bool result = true;
+                                    try
+                                    {
+                                        result = localFilesSelector.Evaluate(file);
+                                    }
+                                    catch (Exception ex) 
+                                    {
+                                        Console.WriteLine(String.Format("An Error occurred while evaluating the local file selection rules for file \"{0}\": {1}", file.FullName, ex.Message));
+                                        Console.WriteLine("In order to be on the safe side the file was adopted.");
+                                    }
+                                    if (!result)
+                                    {
+                                        continue;
+                                    }
+
+                                    string fileName = file.FullName;
+                                    string relativeName = fileName.Substring(workfold.Length);
+                                    Console.WriteLine(String.Format(@"{0}", relativeName));
+
+                                    using (FileStream fs = file.OpenRead())
+                                    {
+                                        AddFileToZip(zipArchive, LocalFilesZipContentPrefix + relativeName, file.LastWriteTime, fs);
+                                    }
+                                }
+                            }
+                        }
 
                         Console.WriteLine(String.Format("Zip file written to \"{0}\"", zipFilePathFull));
 
@@ -380,6 +506,50 @@ namespace TfZip
             using (Stream s = zipArchiveEntry.Open())
             {
                 contentData.CopyTo(s);
+            }
+        }
+    }
+
+
+    public static class LinqToHierarchical  // Thanks Arjan Einbu (http://blog.einbu.no/2009/07/traverse-a-hierarchy-with-linq-to-hierarchical/)
+    {
+        // Usage
+        //foreach (FileInfo file in new DirectoryInfo(@"c:\").FlattenHierarchy(delegate(DirectoryInfo dir) { try { return dir.GetDirectories(); } catch { return null; } })
+        //                                                   .SelectMany(delegate(DirectoryInfo dir) { try { return dir.GetFiles(@"*.xsd"); } catch { return new FileInfo[] {}; } }))
+        //{
+        //    Console.WriteLine(file.FullName);
+        //}
+
+        //foreach (DirectoryInfo directory in new DirectoryInfo(@"c:\").EnumerateDirectories("*", SearchOption.TopDirectoryOnly))
+        //{
+        //    Console.WriteLine(directory.Name);
+        //}
+
+        public static IEnumerable<DirectoryInfo> EnumerateDirectories(this DirectoryInfo dir, string searchPattern, SearchOption searchOption)
+        {
+            if (searchOption == SearchOption.TopDirectoryOnly)
+            {
+                return dir.GetDirectories(searchPattern);
+            }
+            else
+            {
+                return dir.FlattenHierarchy(delegate(DirectoryInfo dir1) { try { return dir1.GetDirectories(searchPattern); } catch { return null; } });
+            }
+        }
+
+        public static IEnumerable<T> FlattenHierarchy<T>(this T node, Func<T, IEnumerable<T>> getChildsFunc)
+        {
+            yield return node;
+            IEnumerable<T> childEnumerator = getChildsFunc(node);
+            if (childEnumerator != null)
+            {
+                foreach (T child in childEnumerator)
+                {
+                    foreach (T childOrDescendant in child.FlattenHierarchy(getChildsFunc))
+                    {
+                        yield return childOrDescendant;
+                    }
+                }
             }
         }
     }

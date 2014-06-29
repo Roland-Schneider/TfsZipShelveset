@@ -1,0 +1,52 @@
+﻿<?xml version='1.0' encoding='utf-8'?>
+<SettingsFile xmlns="http://schemas.microsoft.com/VisualStudio/2004/01/settings" CurrentProfile="(Default)" GeneratedClassNamespace="TfZip" GeneratedClassName="TfZipSettings">
+  <Profiles />
+  <Settings>
+    <Setting Name="LocalFilesSelectionConfiguration" Type="TfZip.Expression" Scope="User">
+      <Value Profile="(Default)">
+                    &lt;Expression xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema"&gt;
+                        &lt;ExpressionType&gt;Or&lt;/ExpressionType&gt;
+                        &lt;Not /&gt;
+                        &lt;Operands&gt;
+                            &lt;Expression&gt;
+                                &lt;ExpressionType&gt;Rule&lt;/ExpressionType&gt;
+                                &lt;IsReadOnly /&gt;
+                            &lt;/Expression&gt;
+                            &lt;Expression&gt;
+                                &lt;ExpressionType&gt;Rule&lt;/ExpressionType&gt;
+                                &lt;FullNameRegex&gt;\\obj\\debug\\&lt;/FullNameRegex&gt;
+                            &lt;/Expression&gt;
+                            &lt;Expression&gt;
+                                &lt;ExpressionType&gt;Rule&lt;/ExpressionType&gt;
+                                &lt;FullNameRegex&gt;\\bin\\debug\\&lt;/FullNameRegex&gt;
+                            &lt;/Expression&gt;
+                            &lt;Expression&gt;
+                                &lt;ExpressionType&gt;Rule&lt;/ExpressionType&gt;
+                                &lt;FullNameRegex&gt;\\bin\\[^\\]+\\debug\\&lt;/FullNameRegex&gt;
+                            &lt;/Expression&gt;
+                            &lt;Expression&gt;
+                                &lt;ExpressionType&gt;Rule&lt;/ExpressionType&gt;
+                                &lt;FullNameRegex&gt;\\obj\\release\\&lt;/FullNameRegex&gt;
+                            &lt;/Expression&gt;
+                            &lt;Expression&gt;
+                                &lt;ExpressionType&gt;Rule&lt;/ExpressionType&gt;
+                                &lt;FullNameRegex&gt;\\bin\\release\\&lt;/FullNameRegex&gt;
+                            &lt;/Expression&gt;
+                            &lt;Expression&gt;
+                                &lt;ExpressionType&gt;Rule&lt;/ExpressionType&gt;
+                                &lt;FullNameRegex&gt;\\bin\\[^\\]+\\release\\&lt;/FullNameRegex&gt;
+                            &lt;/Expression&gt;
+                            &lt;Expression&gt;
+                                &lt;ExpressionType&gt;Rule&lt;/ExpressionType&gt;
+                                &lt;FullNameRegex&gt;\.suo\z&lt;/FullNameRegex&gt;
+                            &lt;/Expression&gt;
+                            &lt;Expression&gt;
+                                &lt;ExpressionType&gt;Rule&lt;/ExpressionType&gt;
+                                &lt;IsXmlDocFile /&gt;
+                            &lt;/Expression&gt;
+                        &lt;/Operands&gt;
+                    &lt;/Expression&gt;
+                </Value>
+    </Setting>
+  </Settings>
+</SettingsFile>
