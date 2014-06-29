@@ -33,8 +33,8 @@ namespace TfZip
         enum ItemsSource
         {
             ShelveSet = 1,
-            Pending = 2,
-            PendingAndWorkfold = 4,
+            PendingChanges = 2,
+            PendingChangesAndWorkfolderLocalFiles = 4,
         }
 
 
@@ -131,7 +131,7 @@ namespace TfZip
                         return 1;
                     }
 
-                    itemsSource = ItemsSource.Pending;
+                    itemsSource = ItemsSource.PendingChanges;
                 }
                 else if ((option.Length >= 5) && ("-wfolder".StartsWith(option, StringComparison.InvariantCultureIgnoreCase) || "/wfolder".StartsWith(option, StringComparison.InvariantCultureIgnoreCase)))
                 {
@@ -183,7 +183,7 @@ namespace TfZip
 
                     Console.Error.WriteLine(String.Format("Using local files selection rules from \"{0}\"", userConfig.FilePath));
 
-                    itemsSource = ItemsSource.PendingAndWorkfold;
+                    itemsSource = ItemsSource.PendingChangesAndWorkfolderLocalFiles;
                 }
                 else if ((option.Length >= 5) && ("-config".StartsWith(option, StringComparison.InvariantCultureIgnoreCase) || "/config".StartsWith(option, StringComparison.InvariantCultureIgnoreCase)))
                 {
@@ -250,7 +250,7 @@ namespace TfZip
 
                 Shelveset shelveset = null;
                 PendingChange[] pendingChanges;
-                if ((itemsSource == ItemsSource.Pending) || (itemsSource == ItemsSource.PendingAndWorkfold))
+                if ((itemsSource == ItemsSource.PendingChanges) || (itemsSource == ItemsSource.PendingChangesAndWorkfolderLocalFiles))
                 {
                     Workspace workspace = versionControl.GetWorkspace(wsInfo);
                     pendingChanges = workspace.GetPendingChanges();
@@ -408,26 +408,15 @@ namespace TfZip
                         DateTime referenceDate = (shelveset != null) ? shelveset.CreationDate : DateTime.Now;
                         AddFileToZip(zipArchive, "Files.txt", referenceDate, pendingChangesInfo);
 
-                        MemoryStream commentInfo = new MemoryStream();
-                        StreamWriter commentInfoWriter = new StreamWriter(commentInfo);
-                        commentInfoWriter.WriteLine(String.Format("Version={0}", tfZipVersion));
-                        if (shelveset != null)
+                        if (itemsSource == ItemsSource.PendingChangesAndWorkfolderLocalFiles)
                         {
-                            commentInfoWriter.WriteLine(String.Format("Shelveset={0}", shelveset.Name));
-                            commentInfoWriter.WriteLine(String.Format("Owner={0}", shelveset.OwnerName));
-                            commentInfoWriter.WriteLine(String.Format("Date={0}", shelveset.CreationDate.ToString("s")));
-                            commentInfoWriter.WriteLine(String.Format("Comment={0}", shelveset.Comment));
-                        }
-                        else
-                        {
-                            commentInfoWriter.WriteLine("PendingChanges");
-                        }
-                        commentInfoWriter.Flush();
-                        commentInfo.Flush();
-                        AddFileToZip(zipArchive, "Info.txt", referenceDate, commentInfo);
-
-                        if (itemsSource == ItemsSource.PendingAndWorkfold)
-                        {
+                            Configuration userConfig = ConfigurationManager.OpenExeConfiguration(ConfigurationUserLevel.PerUserRoamingAndLocal);
+                            FileInfo userConfigFileInfo = new FileInfo(userConfig.FilePath);
+                            using (FileStream fs = userConfigFileInfo.OpenRead())
+                            {
+                                AddFileToZip(zipArchive, userConfigFileInfo.Name, userConfigFileInfo.LastWriteTime, fs);
+                            }
+                            
                             Expression localFilesSelector = TfZipSettings.Default.LocalFilesSelectionConfiguration;
 
                             foreach (string workfold in wsInfo.MappedPaths) // http://msdn.microsoft.com/en-us/library/ms181378.aspx
@@ -461,6 +450,24 @@ namespace TfZip
                                 }
                             }
                         }
+
+                        MemoryStream commentInfo = new MemoryStream();
+                        StreamWriter commentInfoWriter = new StreamWriter(commentInfo);
+                        commentInfoWriter.WriteLine(String.Format("Version={0}", tfZipVersion));
+                        if (shelveset != null)
+                        {
+                            commentInfoWriter.WriteLine(String.Format("Shelveset={0}", shelveset.Name));
+                            commentInfoWriter.WriteLine(String.Format("Owner={0}", shelveset.OwnerName));
+                            commentInfoWriter.WriteLine(String.Format("Date={0}", shelveset.CreationDate.ToString("s")));
+                            commentInfoWriter.WriteLine(String.Format("Comment={0}", shelveset.Comment));
+                        }
+                        else
+                        {
+                            commentInfoWriter.WriteLine(itemsSource.ToString());
+                        }
+                        commentInfoWriter.Flush();
+                        commentInfo.Flush();
+                        AddFileToZip(zipArchive, "Info.txt", referenceDate, commentInfo);
 
                         Console.WriteLine(String.Format("Zip file written to \"{0}\"", zipFilePathFull));
 
