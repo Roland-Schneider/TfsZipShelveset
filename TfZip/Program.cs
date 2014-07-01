@@ -311,7 +311,7 @@ namespace TfZip
                 {
                     if (!zipFilePathInfo.Directory.Exists)
                     {
-                        Console.WriteLine(String.Format("Cannot access outfile path \"{0}\".", zipFilePath));
+                        Console.Error.WriteLine(String.Format("Cannot access outfile path \"{0}\".", zipFilePath));
                         return 1;
                     }
                 }
@@ -333,7 +333,8 @@ namespace TfZip
                         }
                         catch (Exception ex)
                         {
-                            Console.WriteLine(String.Format("Cannot use temporary storage file \"{0}\"." + Environment.NewLine + "{1}", tmpFileInfo, ex.Message));
+                            Console.Error.WriteLine(String.Format("Cannot use temporary storage file \"{0}\"." + Environment.NewLine + "{1}", tmpFileInfo, ex.Message));
+                            return 1;
                         }
 
                         MemoryStream pendingChangesInfo = new MemoryStream();
@@ -341,7 +342,7 @@ namespace TfZip
 
                         if (pendingChanges.Length == 0)
                         {
-                            Console.WriteLine("No pending changes. No file written.");
+                            Console.Error.WriteLine("No pending changes. No file written.");
                             return 1;
                         }
 
@@ -431,8 +432,8 @@ namespace TfZip
                                     }
                                     catch (Exception ex) 
                                     {
-                                        Console.WriteLine(String.Format("An Error occurred while evaluating the local file selection rules for file \"{0}\": {1}", file.FullName, ex.Message));
-                                        Console.WriteLine("In order to be on the safe side the file was adopted.");
+                                        Console.Error.WriteLine(String.Format("An error occurred while evaluating the local file selection rules for file \"{0}\": {1}", file.FullName, ex.Message));
+                                        Console.Error.WriteLine("In order to be on the safe side the file was adopted.");
                                     }
                                     if (!result)
                                     {
@@ -443,9 +444,25 @@ namespace TfZip
                                     string relativeName = fileName.Substring(workfold.Length);
                                     Console.WriteLine(String.Format(@"{0}", relativeName));
 
-                                    using (FileStream fs = file.OpenRead())
+                                    FileStream fs = null;
+                                    try
                                     {
-                                        AddFileToZip(zipArchive, LocalFilesZipContentPrefix + relativeName, file.LastWriteTime, fs);
+                                        fs = file.OpenRead();
+                                    }
+                                    catch (System.IO.IOException ex)
+                                    {
+                                        Console.Error.WriteLine(String.Format("An error occurred while opening the local file \"{0}\": {1}", fileName, ex.Message));
+                                    }
+                                    if (fs != null)
+                                    {
+                                        try
+                                        {
+                                            AddFileToZip(zipArchive, LocalFilesZipContentPrefix + relativeName, file.LastWriteTime, fs);
+                                        }
+                                        finally
+                                        {
+                                            fs.Dispose();
+                                        }
                                     }
                                 }
                             }
