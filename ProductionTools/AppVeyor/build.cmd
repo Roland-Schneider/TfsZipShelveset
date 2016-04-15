@@ -27,6 +27,6 @@ TfsLib14\%CONFIGURATION%\TfZip.exe.config ^
 TfsLib14\%CONFIGURATION%\TfZip.pdb
 @popd
 
-appveyor PushArtifact "%ReleaseZip%"
+appveyor PushArtifact "%ReleaseZip%" -DeploymentName ExecutablesZip
 
 @endlocal
