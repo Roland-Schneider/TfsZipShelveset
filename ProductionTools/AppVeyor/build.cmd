@@ -14,9 +14,8 @@ msbuild TfZip\TfZip.TfsLib12.0.csproj /t:Clean,Build /p:Configuration=%CONFIGURA
 if ERRORLEVEL 1 goto :EOF
 
 :: Generating github release package
-set ReleaseZip=TfZip-Executable.%APPVEYOR_BUILD_VERSION%.zip
-if "%APPVEYOR_REPO_TAG%"=="true" set ReleaseZip=TfZip-Executable.%APPVEYOR_REPO_TAG_NAME%.zip
-@echo Artifact=%ReleaseZip%
+set ReleaseZip=TfZip-Executable.%APPVEYOR_REPO_COMMIT%.zip
+if %APPVEYOR_REPO_TAG%=="true" set ReleaseZip=TfZip-Executable.%APPVEYOR_REPO_TAG_NAME%.zip
 
 @pushd TfZip\bin
 7z a ..\..\%ReleaseZip% ^
