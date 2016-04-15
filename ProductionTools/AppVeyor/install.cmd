@@ -1,0 +1,9 @@
+@set
+
+for /f %%i in ('git tag') do @set VERSION=%%i
+@echo Version=%VERSION%
+
+if not "%VERSION%"=="" set APPVEYOR_BUILD_VERSION=%VERSION:~1%.%APPVEYOR_BUILD_NUMBER%
+if %APPVEYOR_REPO_TAG%==true set APPVEYOR_BUILD_VERSION=%VERSION:~1%
+
+@echo APPVEYOR_BUILD_VERSION=%APPVEYOR_BUILD_VERSION%
