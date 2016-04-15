@@ -1,6 +1,6 @@
 @setlocal
 
-@set
+:: @set
 
 @echo Platform=%PLATFORM%
 @echo Configuration=%CONFIGURATION%

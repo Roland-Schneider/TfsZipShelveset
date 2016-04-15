@@ -1,4 +1,4 @@
-set
+:: set
 
 set GIT_VERSION=
 for /f %%i in ('git tag') do set GIT_VERSION=%%i
