@@ -1,0 +1,18 @@
+version: '{build}'
+assembly_info:
+  patch: true
+  file: '**\AssemblyInfo.*'
+  assembly_version: $(APPVEYOR_BUILD_VERSION)
+install:
+- cmd: ProductionTools\AppVeyor\install.cmd
+build_script:
+- cmd: ProductionTools\AppVeyor\build.cmd
+deploy:
+- provider: GitHub
+  tag: $(APPVEYOR_REPO_TAG_NAME)
+  release: TfZip $(APPVEYOR_REPO_TAG_NAME)
+  auth_token:
+    secure: akUQwzHwwBo5F6S+cNPn2DUqE5igCF2MwY9sGNFhbnD4aAYjxHNveOjb0yBXvLHZ
+  artifact: ExecutablesZip
+  on:
+    APPVEYOR_REPO_TAG: true
