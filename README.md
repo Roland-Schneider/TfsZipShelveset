@@ -1,4 +1,4 @@
-[![AppVeyor Build status](https://ci.appveyor.com/api/projects/status/github/Roland-Schneider/TfsZipShelveset?branch=master&svg=true)](https://ci.AppVeyor.com/project/Roland-Schneider/TfsZipShelveset)
+[![AppVeyor Build status](https://ci.appveyor.com/api/projects/status/github/Roland-Schneider/TfsZipShelveset?svg=true)](https://ci.AppVeyor.com/project/Roland-Schneider/TfsZipShelveset)
 
 TfsZipShelveset
 ===============
