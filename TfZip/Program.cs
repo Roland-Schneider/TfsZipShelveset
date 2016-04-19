@@ -274,8 +274,7 @@ namespace TfZip
 
                     pendingChanges = pendingSets[0].PendingChanges;
 
-                    ShelvesetUri shelvesetUri = new ShelvesetUri(shelvesetName, shelvesetOwner, UriType.Normal);
-                    shelveset = versionControl.ArtifactProvider.GetShelveset(shelvesetUri.Uri);
+                    shelveset = versionControl.QueryShelvesets(shelvesetName, shelvesetOwner).Single();
                 }
                 else
                 {
@@ -348,10 +347,11 @@ namespace TfZip
 
                         foreach (PendingChange pendingChange in pendingChanges)
                         {
-                            string changeType = PendingChange.GetLocalizedStringForChangeType(pendingChange.ChangeType);
-                            string basedOn = pendingChange.IsAdd ? String.Empty : String.Format("C{0}", pendingChange.Version);
+                            int pendingChangeBaseVersion = pendingChange.Version;
+                            string basedOn = (pendingChangeBaseVersion > 0) ? String.Format("C{0}", pendingChange.Version) : String.Empty;
                             string originalPath = pendingChange.IsRename ? pendingChange.SourceServerItem : null;
                             string originalPathInfo = originalPath != null ? String.Format("{0}", originalPath) : String.Empty;
+                            string changeType = PendingChange.GetLocalizedStringForChangeType(pendingChange.ChangeType);
                             string info = String.Format("{0}|{1}|{2}|{3}", pendingChange.ServerItem, changeType, basedOn, originalPathInfo);
                             Console.WriteLine(info);
                             pendingChangesInfoWriter.WriteLine(info);
@@ -383,12 +383,11 @@ namespace TfZip
                                 }
                             }
 
-                            if ((pendingChange.IsEdit && !pendingChange.IsAdd) || (pendingChange.IsDelete))
+                            if (pendingChangeBaseVersion > 0)
                             {
                                 string originalFileRelativePath = originalPath == null ? serverItemRelativePath : originalPath.Substring(2).Replace('/', Path.DirectorySeparatorChar);
 
                                 string extension = Path.GetExtension(originalFileRelativePath);
-                                int pendingChangeBaseVersion = pendingChange.Version;
                                 string baseServerItemRelativePath = originalFileRelativePath.Substring(0, originalFileRelativePath.Length - extension.Length) + ".C" + pendingChangeBaseVersion.ToString() + extension;
 
                                 Changeset baseVersionChangeSet = versionControl.GetChangeset(pendingChangeBaseVersion, false, false);
